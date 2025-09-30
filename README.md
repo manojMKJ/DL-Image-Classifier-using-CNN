@@ -10,74 +10,240 @@ The MNIST dataset consists of 70,000 grayscale images of handwritten digits (0-9
 Include the neural network model diagram.
 
 ## DESIGN STEPS
-### STEP 1: 
+### STEP 1: Define the problem
+Classify handwritten digits (0–9) using the MNIST dataset.
 
-Write your own steps
-
-### STEP 2: 
-
-
-
-### STEP 3: 
+### STEP 2: Import libraries and dataset
+Import required libraries such as TensorFlow/Keras, NumPy, and Matplotlib.
+Load the MNIST dataset using keras.datasets.mnist.load_data().
 
 
-
-### STEP 4: 
-
-
-
-### STEP 5: 
+### STEP 3: Preprocess the data
+Normalize the image pixel values (scale from 0-255 to 0-1).
+Reshape the images to match CNN input shape.
 
 
+### STEP 4: Build the CNN model
+Initialize a Sequential model.
+Add convolutional layers with activation (ReLU), followed by pooling layers.
+Flatten the output and add Dense layers.
+Use a softmax layer for classification.
 
-### STEP 6: 
+### STEP 5: Compile and train the model
+Compile the model with an optimizer (e.g., Adam), loss function (e.g., categorical crossentropy), and metrics (accuracy).
+Train the model using training data and validate using validation split or test data.
 
 
+### STEP 6: Evaluate and visualize results
+Evaluate the model on test data and print accuracy.
+Plot training/validation loss and accuracy curves.
+Optionally, display a confusion matrix or sample predictions.
 
 
 
 ## PROGRAM
 
-### Name:
+```
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision
+import torchvision.transforms as transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+import seaborn as sns
 
-### Register Number:
+## Step 1: Load and Preprocess Data
+# Define transformations for images
+transform = transforms.Compose([
+    transforms.ToTensor(),          # Convert images to tensors
+    transforms.Normalize((0.5,), (0.5,))  # Normalize images
+])
 
-```python
+# Load MNIST dataset
+train_dataset = torchvision.datasets.MNIST(root="./data", train=True, transform=transform, download=True)
+test_dataset = torchvision.datasets.MNIST(root="./data", train=False, transform=transform, download=True)
+
+# Get the shape of the first image in the training dataset
+image, label = train_dataset[0]
+print("Image shape:", image.shape)
+print("Number of training samples:", len(train_dataset))
+
+# Get the shape of the first image in the test dataset
+image, label = test_dataset[0]
+print("Image shape:", image.shape)
+print("Number of testing samples:", len(test_dataset))
+
+# Create DataLoader for batch processing
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+
+
 class CNNClassifier(nn.Module):
-    def __init__(self, input_size):
+    def __init__(self):
         super(CNNClassifier, self).__init__()
-        #Include your code here
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.fc1 = nn.Linear(128 * 3 * 3, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
 
     def forward(self, x):
-        #Include your code here
+        x = self.pool(torch.relu(self.conv1(x)))
+        x = self.pool(torch.relu(self.conv2(x)))
+        x = self.pool(torch.relu(self.conv3(x)))
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
 
 
-# Initialize the Model, Loss Function, and Optimizer
-model =
-criterion =
-optimizer =
+from torchsummary import summary
 
-def train_model(model, train_loadr, num_epochs=10):
-    #Include your code here
+# Initialize model
+model = CNNClassifier()
 
+# Move model to GPU if available
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+    model.to(device)
+
+# Print model summary
+print('Name: Manoj Kumar G')
+print('Register Number: 212222230078')
+summary(model, input_size=(1, 28, 28))
+
+# Initialize model, loss function, and optimizer
+model =CNNClassifier()
+criterion =nn.CrossEntropyLoss()
+optimizer =optim.Adam(model.parameters(),lr=0.001)
+
+## Step 3: Train the Model
+def train_model(model, train_loader, num_epochs=3):
+  for epoch in range(num_epochs):
+        model.train()
+        running_loss = 0.0
+        for images, labels in train_loader:
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader):.4f}')
+
+
+# Train the model
+train_model(model, train_loader, num_epochs=10)
+
+
+## Step 4: Test the Model
+
+def test_model(model, test_loader):
+    model.eval()
+    correct = 0
+    total = 0
+    all_preds = []
+    all_labels = []
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        model.to(device)
+
+    with torch.no_grad():
+        for images, labels in test_loader:
+            if torch.cuda.is_available():
+                images, labels = images.to(device), labels.to(device)
+
+            outputs = model(images)
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            all_preds.extend(predicted.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    accuracy = correct / total
+    print('Name: Manoj Kumar G')
+    print('Register Number: 212222230078')
+    print(f'Test Accuracy: {accuracy:.4f}')
+    # Compute confusion matrix
+    cm = confusion_matrix(all_labels, all_preds)
+    plt.figure(figsize=(8, 6))
+    print('Name: Manoj Kumar G')
+    print('Register Number: 212222230078')
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=test_dataset.classes, yticklabels=test_dataset.classes)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.title('Confusion Matrix')
+    plt.show()
+    # Print classification report
+    print('Name: Manoj Kumar G')
+    print('Register Number: 212222230078')
+    print("Classification Report:")
+    print(classification_report(all_labels, all_preds, target_names=[str(i) for i in range(10)]))
+
+# Evaluate the model
+test_model(model, test_loader)
+
+
+## Step 5: Predict on a Single Image
+def predict_image(model, image_index, dataset):
+    model.eval()
+    image, label = dataset[image_index]
+    if torch.cuda.is_available():
+        image = image.to(device)
+
+    with torch.no_grad():
+        output = model(image.unsqueeze(0))
+        _, predicted = torch.max(output, 1)
+
+    class_names = [str(i) for i in range(10)]
+
+    print('Name: Manoj Kumar G')
+    print('Register Number: 212222230078')
+    plt.imshow(image.cpu().squeeze(), cmap="gray")
+    plt.title(f'Actual: {class_names[label]}\nPredicted: {class_names[predicted.item()]}')
+    plt.axis("off")
+    plt.show()
+    print(f'Actual: {class_names[label]}, Predicted: {class_names[predicted.item()]}')
+
+# Example Prediction
+predict_image(model, image_index=80, dataset=test_dataset)
 ```
+
+### Name: Manoj Kumar G
+
+### Register Number: 212222230078
 
 ### OUTPUT
 
 ## Training Loss per Epoch
 
-Include the Training Loss per epoch
+<img width="328" height="241" alt="image" src="https://github.com/user-attachments/assets/b051d329-81b6-431f-81fa-1b442035a308" />
+
 
 ## Confusion Matrix
 
-Include confusion matrix here
+<img width="873" height="791" alt="Screenshot 2025-09-30 100838" src="https://github.com/user-attachments/assets/917e7df8-3e2e-4934-99f0-88a2baa91bf5" />
+
 
 ## Classification Report
-Include classification report here
+
+<img width="487" height="408" alt="image" src="https://github.com/user-attachments/assets/ae246e3b-4c6f-4c42-99fe-0563291f5781" />
+
+
 
 ### New Sample Data Prediction
-Include your sample input and output here
+
+<img width="482" height="607" alt="image" src="https://github.com/user-attachments/assets/5de10c9e-88f3-4925-967b-c9241b8ceaf0" />
+
+
 
 ## RESULT
-Include your result here
+The CNN model achieved high accuracy on the MNIST dataset, with training and validation losses showing good convergence. The classification report and confusion matrix confirmed strong performance across all digits, with minimal misclassifications. Overall, the model performs reliably in handwritten digit recognition.
